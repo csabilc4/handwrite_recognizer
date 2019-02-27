@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+# coding=utf-8
+
+import os
+import sys
+import cv2
+import numpy as np
+import pytesseract
+import PIL.Image
+
+def print_list(list_in):
+    for i, value in enumerate(list_in):
+        print (i, value)
+
+# print_list(sys.path)
+
+os.chdir('e:\Temp\opencv_pix')
+
+def get_all_pix(pix_path):
+    'get pictures from path'
+
+    for _root, dummy_dirs, _files in os.walk((pix_path)):
+        for _file in _files:
+            _actFile = os.path.join(_root, _file)
+            if _actFile[-3:] == "jpg" or _actFile[-3:] == "png":
+                # print (_actFile)
+                print (do_rec(_actFile))
+
+
+def image_to_text(image):
+    'convert image to list of lists text'
+
+    img = cv2.imread(image)
+
+    image_to_list = make_2Dim_list(col_num = img.shape[1], row_num = img.shape[0])
+    bFound = False
+    for i_r, row in enumerate(img):
+        for i_c, cell in enumerate(row):
+            if cell[0] != 255 or cell[1] != 255 or cell[2] != 255:
+                image_to_list[i_r][i_c] = '0'
+
+            # if cell[0] != 255 or cell[1] != 255 or cell[2] != 255:
+            #     print (cell, i_r, i_c)
+            #     bFound = True
+            #     break
+            # if bFound: break
+
+    # print_list(image_to_list)
+
+    return image_to_list
+
+
+def image_to_str(image_to_list, image_path_without_ext):
+    'write image lst to file'
+
+    with open(image_path_without_ext + '.txt', 'a') as f:
+        for i_r, row in enumerate(image_to_list):
+            rr = ''.join(row)
+            f.write(rr)
+            f.write('\n')
+
+
+def make_2Dim_list(col_num, row_num):
+    list_out = []
+    for i in range((row_num)):
+        list_out.append([])
+        for j in range((col_num)):
+            list_out[i].append('.')
+
+    return list_out
+
+
+def do_rec(image_path):
+    'recognize'
+
+    image_ext = os.path.splitext(image_path)[1]
+    image_path_without_ext = os.path.splitext(image_path)[0]
+    # print(image_path_without_ext)
+    # print (image_ext)
+
+    # Read image with opencv
+    img = cv2.imread(image_path)
+
+    # Convert to gray
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Apply dilation and erosion to remove some noise
+    kernel = np.ones((1, 1), np.uint8)
+    img = cv2.dilate(img, kernel, iterations=1)
+    img = cv2.erode(img, kernel, iterations=1)
+
+    # Write image after removed noise
+    # image_removed_noise = (image_path_without_ext + "_removed_noise" + image_ext)
+    # cv2.imwrite(image_removed_noise, img)
+
+    #  Apply threshold to get image with only black and white
+    img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 2)
+
+    # Write the image after apply opencv to do some ...
+    image_thres = (image_path_without_ext + "_thres" + image_ext)
+    cv2.imwrite(image_thres, img)
+
+    # Recognize text with tesseract for python
+    result = pytesseract.image_to_string(PIL.Image.open(image_thres))
+
+    # convert image to textfile
+    image_to_list = image_to_text(image_thres)
+    image_to_str(image_to_list, image_path_without_ext)
+
+    return result
+
+
+def main():
+    get_all_pix(os.getcwd())
+
+
+if __name__ == '__main__':
+    main()
